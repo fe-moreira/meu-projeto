@@ -18,17 +18,25 @@ export default function SurveyPage() {
   const [score, setScore] = useState(null)
   const [comment, setComment] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     if (score === null) {
       setError('Por favor, selecione uma nota de 0 a 10.')
       return
     }
     setError('')
-    addResponse({ score, comment })
-    setSubmitted(true)
+    setSubmitting(true)
+    try {
+      await addResponse({ score, comment })
+      setSubmitted(true)
+    } catch (err) {
+      setError('Não foi possível enviar sua resposta. Tente novamente. ' + err.message)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   function reset() {
@@ -117,9 +125,10 @@ export default function SurveyPage() {
 
           <button
             type="submit"
-            className="mt-6 w-full sm:w-auto px-8 py-3 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors"
+            disabled={submitting}
+            className="mt-6 w-full sm:w-auto px-8 py-3 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Enviar feedback
+            {submitting ? 'Enviando...' : 'Enviar feedback'}
           </button>
         </form>
       </div>

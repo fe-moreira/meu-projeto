@@ -1,41 +1,44 @@
-// Camada simples de persistência usando localStorage.
-// Em um cenário real isso seria substituído por chamadas a uma API/backend.
+// Camada de dados das respostas de NPS, persistidas no Supabase.
 
-const STORAGE_KEY = 'nps-responses'
+import { supabase } from './supabaseClient.js'
+
+const TABLE = 'nps_responses'
 
 /**
- * Retorna todas as respostas de NPS armazenadas.
- * @returns {Array<{score:number, comment:string, createdAt:string}>}
+ * Busca todas as respostas de NPS, ordenadas da mais recente para a mais antiga.
+ * @returns {Promise<Array<{id:string, score:number, comment:string, createdAt:string}>>}
  */
-export function getResponses() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch (err) {
-    console.error('Erro ao ler respostas do localStorage:', err)
-    return []
+export async function getResponses() {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('id, score, comment, created_at')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    throw new Error(error.message)
   }
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    score: row.score,
+    comment: row.comment ?? '',
+    createdAt: row.created_at,
+  }))
 }
 
 /**
  * Salva uma nova resposta de NPS.
  * @param {{score:number, comment:string}} response
  */
-export function addResponse(response) {
-  const responses = getResponses()
-  responses.push({
+export async function addResponse(response) {
+  const { error } = await supabase.from(TABLE).insert({
     score: response.score,
-    comment: response.comment?.trim() ?? '',
-    createdAt: new Date().toISOString(),
+    comment: response.comment?.trim() || null,
   })
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(responses))
-}
 
-/**
- * Remove todas as respostas armazenadas.
- */
-export function clearResponses() {
-  localStorage.removeItem(STORAGE_KEY)
+  if (error) {
+    throw new Error(error.message)
+  }
 }
 
 /**

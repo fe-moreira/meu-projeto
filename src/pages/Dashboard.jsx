@@ -1,11 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  getResponses,
-  clearResponses,
-  computeStats,
-  classify,
-} from '../lib/storage.js'
+import { getResponses, computeStats, classify } from '../lib/storage.js'
 
 function npsColor(nps) {
   if (nps >= 50) return 'text-green-600'
@@ -64,24 +59,30 @@ const GROUP_BADGE = {
 
 export default function Dashboard() {
   const [responses, setResponses] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    setResponses(getResponses())
+    let active = true
+    getResponses()
+      .then((data) => {
+        if (active) setResponses(data)
+      })
+      .catch((err) => {
+        if (active) setError(err.message)
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
   }, [])
 
   const stats = useMemo(() => computeStats(responses), [responses])
 
-  const sorted = useMemo(
-    () => [...responses].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
-    [responses],
-  )
-
-  function handleClear() {
-    if (window.confirm('Tem certeza que deseja apagar todas as respostas?')) {
-      clearResponses()
-      setResponses([])
-    }
-  }
+  // As respostas já chegam ordenadas (mais recentes primeiro) do backend.
+  const sorted = responses
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
@@ -90,17 +91,17 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-slate-800">Dashboard de NPS</h1>
           <p className="mt-1 text-slate-500">Resultados das pesquisas de satisfação.</p>
         </div>
-        {responses.length > 0 && (
-          <button
-            onClick={handleClear}
-            className="text-sm text-red-600 hover:text-red-700 font-medium"
-          >
-            Limpar dados
-          </button>
-        )}
       </div>
 
-      {responses.length === 0 ? (
+      {loading ? (
+        <div className="mt-10 bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-500">
+          Carregando resultados...
+        </div>
+      ) : error ? (
+        <div className="mt-10 bg-red-50 rounded-2xl border border-red-200 p-12 text-center text-red-600">
+          Erro ao carregar os dados: {error}
+        </div>
+      ) : responses.length === 0 ? (
         <div className="mt-10 bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center">
           <p className="text-slate-500">Ainda não há respostas registradas.</p>
           <Link
